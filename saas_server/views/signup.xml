@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<openerp>
+    <data>
+
+		<template id="saas_server.signup_fields" inherit_id="auth_signup.fields" >
+			<xpath expr="//div[@class='form-group field-name']" position="after">
+
+				<div class="form-group field-role" t-if="reset == false">
+	                <label for="plan_id" class="control-label">Plan</label>
+					<select name="plan_id" class="form-control" required="required" t-att-readonly="'readonly' if only_passwords else None"
+						t-att-autofocus="'autofocus' if login and not only_passwords else None">
+						<option value=""></option>
+						<t t-foreach="plans or []" t-as="plan">
+                        	<option t-att-value="plan.id"><t t-esc="plan.name"/></option>
+                    	</t>
+                    </select>
+	            </div>
+
+				<div class="form-group field-name" t-if="reset == false">
+	                <label for="organization" class="control-label">Organization</label>
+	                <input type="text" name="organization" t-att-value="organization" id="organization" class="form-control" placeholder="e.g. Reserva Inc."
+	                    required="required" t-att-readonly="'readonly' if only_passwords else None"
+	                    t-att-autofocus="'autofocus' if login and not only_passwords else None" />
+	            </div>
+				
+				<div class="form-group field-name" t-if="reset == false">
+	                <label for="dbname" class="control-label">Subdomain</label>
+	                    <div class="input-group">
+		                    <input type="text" name="dbname" t-att-value="dbname" id="dbname" class="form-control" placeholder="your-company-name"
+		                    required="required" t-att-readonly="'readonly' if only_passwords else None"
+		                    t-att-autofocus="'autofocus' if login and not only_passwords else None" />
+							<span class="input-group-addon">.<t t-raw="base_saas_domain"/></span>
+						</div> 
+	            </div>
+
+	            <div t-attf-class="form-group  field-country" t-if="reset == false">
+                      <label class="control-label" for="country_id">Country</label>
+                      <select name="country_id" class="form-control" required="required" t-att-readonly="'readonly' if only_passwords else None">
+                          <option value=""></option>
+                          <t t-foreach="countries or []" t-as="country">
+                          	   <option t-att-value="country.id"><t t-esc="country.name"/></option>
+                          </t>
+                      </select>
+                </div>
+
+			</xpath>
+		</template>
+		
+		<template id="saas_server.tenant" inherit_id="website.layout" >
+			<xpath expr="//ul[@role='menu']/li/a[@href='/web']" position="replace">
+				<a href="/saas_server/tenant" role="menuitem">Workspace</a>
+			</xpath>
+		</template>
+		
+	</data>
+</openerp>
