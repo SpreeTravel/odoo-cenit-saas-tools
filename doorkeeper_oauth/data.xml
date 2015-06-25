@@ -1,0 +1,16 @@
+<openerp>
+    <data noupdate="1">
+        <record id="saas_logout_redirect" model="ir.config_parameter">
+            <field name="key">web.logout.redirect</field>
+            <field name="value">http://www.cenitsaas.com</field>
+        </record>
+        <record id="cenit_plan_default" model="ir.config_parameter">
+            <field name="key">cenit.plan.default</field>
+            <field name="value">cenitodoo_plan_free</field>
+        </record>
+        <record id="cenit_plan_demo" model="ir.config_parameter">
+            <field name="key">cenit.plan.demo</field>
+            <field name="value">cenitodoo_plan_demo</field>
+        </record>
+    </data>
+</openerp>
