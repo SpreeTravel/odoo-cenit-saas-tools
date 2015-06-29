@@ -81,7 +81,14 @@ class DoorkeeperOauth (http.Controller):
                             'cenit_saas_server', 'saas_oauth_provider'
                         )
                     except ValueError:
-                        return set_cookie_and_redirect('/web?db=%s' % dbname)
+                        # LEGACY
+                        try:
+                            model, provider_id = IMD.get_object_reference(
+                                cr, SUPERUSER_ID,
+                                'saas_server', 'saas_oauth_provider'
+                            )
+                        except ValueError:
+                            return set_cookie_and_redirect('/web?db=%s' % dbname)
                     assert model == 'auth.oauth.provider'
 
                 params = {
