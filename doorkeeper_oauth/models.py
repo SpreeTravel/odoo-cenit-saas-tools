@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 
 import os
+from datetime import datetime, timedelta
 import werkzeug.urls
 import urlparse
 import urllib2
@@ -13,7 +14,7 @@ from openerp.addons.auth_signup.res_users import SignupError
 from openerp.addons.saas_utils import connector, database
 from openerp.http import request
 from openerp.modules.registry import RegistryManager
-from openerp.tools import config
+from openerp.tools import config, DEFAULT_SERVER_DATETIME_FORMAT
 
 import logging
 
@@ -62,7 +63,7 @@ class ResUsers(models.Model):
         try:
             f = urllib2.urlopen (req)
         except Exception, e:
-            _logger.exception ("\n\nError [%s]\n", e.read())
+            _logger.exception ("\n\nError [%s]\n", e.message)
             raise e
         response = f.read()
 
@@ -150,6 +151,7 @@ class ResUsers(models.Model):
 
             This method can be overridden to add alternative signin methods.
         """
+
         try:
             oauth_uid = validation['user_id']
 
@@ -177,8 +179,6 @@ class ResUsers(models.Model):
                 return None
 
             state = simplejson.loads(params['state'])
-            _logger.info ("\n\nState %s\n", state)
-
             token = state.get('t')
 
             oauth_uid = validation['user_id']
@@ -200,7 +200,6 @@ class ResUsers(models.Model):
             try:
                 arg0, login, arg2 = self.signup (cr, uid, values, token,
                                            context=context)
-                _logger.info ("\n\nARGs are %s & %s", arg0, arg2)
                 return cr, login
             except SignupError:
                 raise access_denied_exception
@@ -236,6 +235,8 @@ class ResUsers(models.Model):
         # else:
         #   continue with the process
 
+        _logger.info("\n\nAuth OAuthing ...\n")
+
         access_token = params.get ('access_token', False)
         if not access_token:
             access_token = self.__auth_oauth_code (
@@ -245,10 +246,10 @@ class ResUsers(models.Model):
         validation = self.__auth_oauth_token_validate (
             cr, uid, provider, access_token
         )
-        _logger.info ("\n\nValidation: %s\n", validation)
 
         (dbname, login) = self.__get_credentials (
             cr, uid, provider, validation, params, context=context
         )
+
         return (dbname, login, access_token)
 

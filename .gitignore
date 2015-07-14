@@ -54,6 +54,7 @@ docs/_build/
 
 # Eclipse
 .settings
+.idea/
 
 # Misc
 TODO

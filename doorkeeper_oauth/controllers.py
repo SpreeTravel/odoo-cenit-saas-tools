@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+from xml.dom.expatbuilder import FragmentBuilder
 import openerp
 from openerp import SUPERUSER_ID
 from openerp.addons.auth_oauth.controllers.main import fragment_to_query_string
@@ -7,7 +8,9 @@ from openerp.addons.web.controllers.main import db_monodb, ensure_db, set_cookie
 from openerp.addons.web.controllers.main import Session
 from openerp.addons.web.http import request
 from openerp.modules.registry import RegistryManager
+from openerp.tools import config, DEFAULT_SERVER_DATETIME_FORMAT
 
+from datetime import datetime, timedelta
 
 import werkzeug
 import simplejson
@@ -45,8 +48,48 @@ class DoorkeeperOauth (http.Controller):
 
         return user['oauth_uid'], credentials
 
+    def __save_access_token(self, cr, uid, login, token, app_id, params):
+        oat_pool = request.registry.get('oauth.access_token')
+        if not oat_pool:
+            return False
+
+        user_pool = request.registry.get('res.users')
+        user_id = user_pool.search(cr, uid, [('login', '=', login)])[0]
+
+        expires_in = int(params.get('expires_in', '7200'))
+        expires = datetime.now() + timedelta(seconds=expires_in)
+
+        scope = params.get('scope', 'userinfo')
+
+        candidates = oat_pool.search(cr, uid, [
+            ('user_id', '=', user_id),
+            ('application_id', '=', app_id)
+        ])
+
+        if candidates:
+            oat_id = candidates[0]
+            oat_pool.write(cr, uid, oat_id, {
+                'scope': scope,
+                'expires': expires.strftime(DEFAULT_SERVER_DATETIME_FORMAT),
+                'token': token,
+            })
+        else:
+            oat = oat_pool.create(cr, uid, {
+                'user_id': user_id,
+                'scope': scope,
+                'expires': expires.strftime(DEFAULT_SERVER_DATETIME_FORMAT),
+                'token': token,
+                'application_id': app_id
+            })
+            oat_id = oat.id
+        cr.commit()
+
+        return oat_id
+
     @http.route ('/auth_oauth/doorkeeper_cb', type='http', auth='none')
+    @fragment_to_query_string
     def doorkeeper_cb (self, **kw):
+        _logger.info("\n\nDOORKEEPER_CB args: %s\n", kw)
         if kw.get('state', False):
             state = simplejson.loads(kw['state'])
 
@@ -66,7 +109,9 @@ class DoorkeeperOauth (http.Controller):
                 redirect = "%s://%s.%s" %(proto, db_prefix, root_url)
                 if not redirect.endswith ("/"):
                     redirect += "/"
-
+            else:
+                url = "/web/login?oauth_error=2"
+                return set_cookie_and_redirect(url)
 
             state.update ({'d': dbname})
             kw['state'] = simplejson.dumps (state)
@@ -91,8 +136,23 @@ class DoorkeeperOauth (http.Controller):
                             return set_cookie_and_redirect('/web?db=%s' % dbname)
                     assert model == 'auth.oauth.provider'
 
+                    master_reg = RegistryManager.get(master_db)
+                    master_cr = master_reg.cursor()
+                    oapp_pool = master_reg.get('oauth.application')
+                    uid = SUPERUSER_ID
+                    if oapp_pool:
+                        candidates = oapp_pool.search(master_cr, uid, [('name', '=', dbname)])
+                        if candidates:
+                            app_id = candidates[0]
+                            self.__save_access_token(
+                                master_cr, SUPERUSER_ID,
+                                login, kw['access_token'], app_id, kw
+                            )
+
                 params = {
                     'access_token': kw['access_token'],
+                    'expires_in': kw.get('expires_in', '7200'),
+                    'scope': kw.get('scope', 'userinfo'),
                     'state': simplejson.dumps({
                         'd': dbname,
                         'p': provider_id,
@@ -106,7 +166,6 @@ class DoorkeeperOauth (http.Controller):
                     )
                 )
             else:
-                _logger.info ("\n\nNo existing tenant\n")
                 registry = RegistryManager.get (master_db)
 
                 if not state.get ('name', False):
@@ -132,6 +191,8 @@ class DoorkeeperOauth (http.Controller):
                 })
 
                 kw['state'] = simplejson.dumps (state)
+                if not kw.get('scope', False):
+                    kw['scope'] = 'userinfo'
                 try:
                     provider = self.__create_app_for_db (state['d'])
                     partner_id, credentials = self.__signup_user (provider, kw)
@@ -142,6 +203,19 @@ class DoorkeeperOauth (http.Controller):
                     url = "/web/login?oauth_error=2"
                     return set_cookie_and_redirect (url)
 
+                oapp_pool = registry.get('oauth.application')
+                cr = registry.cursor()
+                uid = SUPERUSER_ID
+                if oapp_pool:
+                    candidates = oapp_pool.search(cr, uid,
+                                                  [('name', '=', dbname)])
+                    if candidates:
+                        app_id = candidates[0]
+                        self.__save_access_token(
+                            cr, SUPERUSER_ID,
+                            login, kw['access_token'], app_id, kw
+                        )
+
                 url = "/saas_server/new_database"
                 kw['admin_data'] = simplejson.dumps ({
                     'user_id': partner_id,
@@ -151,7 +225,6 @@ class DoorkeeperOauth (http.Controller):
                 })
 
                 full_url = '%s?%s' % (url, werkzeug.url_encode(kw))
-                _logger.info ("\n\nFullURL: %s\n", full_url)
                 return login_and_redirect (*credentials, redirect_url=full_url)
         else:
             _logger.exception ('OAuth2: No state provided.')

@@ -2,11 +2,8 @@
 import openerp
 from openerp import SUPERUSER_ID
 from openerp import http
-from openerp.addons import auth_signup
 from openerp.addons.web.http import request
 from openerp.addons.auth_oauth.controllers.main import fragment_to_query_string
-from openerp.addons.web.controllers.main import db_monodb, Session
-from openerp.addons.saas_utils import connector
 from openerp.addons.saas_server.controllers import main as saas_server
 
 import re
