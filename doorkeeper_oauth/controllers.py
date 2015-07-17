@@ -74,14 +74,13 @@ class DoorkeeperOauth (http.Controller):
                 'token': token,
             })
         else:
-            oat = oat_pool.create(cr, uid, {
+            oat_id = oat_pool.create(cr, uid, {
                 'user_id': user_id,
                 'scope': scope,
                 'expires': expires.strftime(DEFAULT_SERVER_DATETIME_FORMAT),
                 'token': token,
                 'application_id': app_id
             })
-            oat_id = oat.id
         cr.commit()
 
         return oat_id
@@ -101,7 +100,7 @@ class DoorkeeperOauth (http.Controller):
             if state.get ('login', False):
                 login = state['login']
 
-                db_prefix = state['login'].split ('@')[0]
+                db_prefix = state['login'].split ('@')[0].replace(".", "_")
                 if state.get ('demo', False):
                     db_prefix = "%s-%s" % (db_prefix, 'demo')
 
