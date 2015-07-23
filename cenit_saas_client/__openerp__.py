@@ -21,11 +21,11 @@ This module provides integration with cenitsaas.com as client
     'depends': ['base', 'saas_client', 'doorkeeper_oauth'],
 
     # always loaded
-    # 'data': [
-        #~'security/ir.model.access.csv',
+    'data': [
+        'security/rules.xml',
         #~ 'data.xml',
         #~ 'templates.xml',
-    # ],
+    ],
     'qweb': [
         'static/src/xml/menu_ui.xml'
     ]
