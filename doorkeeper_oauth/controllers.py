@@ -278,7 +278,7 @@ class DoorkeeperOauth (http.Controller):
             ('state', '=', 'confirmed'),
         ]
         if name is not None:
-            conditions.append (('name', '=', name))
+            conditions.append (('template', '=', name))
 
         plans = ssp.search_read (
             request.cr, SUPERUSER_ID, conditions
