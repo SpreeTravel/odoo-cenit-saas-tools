@@ -17,7 +17,7 @@
 
         <record model="ir.ui.menu" id="base.module_mi">
 			<field name="groups_id"
-				   eval="[(6, 0, [ref('hidden_content')])]"/>
+				   eval="[(6, 0, [ref('group_hidden_content')])]"/>
 		</record>
 
 	</data>
