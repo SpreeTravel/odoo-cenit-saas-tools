@@ -11,9 +11,13 @@
             <field name="perm_write" eval="True"/>
         </record>
 
-		<record model="ir.ui.menu" id="base.module_mi">
+        <record model="res.groups" id="group_hidden_content">
+            <field name="name">Hidden Content</field>
+        </record>
+
+        <record model="ir.ui.menu" id="base.module_mi">
 			<field name="groups_id"
-				   eval="[(5, 0, 0)]"/>
+				   eval="[(6, 0, [ref('hidden_content')])]"/>
 		</record>
 
 	</data>
