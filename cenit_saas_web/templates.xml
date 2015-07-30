@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<openerp>
+    <data>
+        <template id="menu_secondary" inherit_id="web.menu_secondary"
+                  name="inherit menu_secondary">
+            <xpath expr="//div[@class='oe_footer']" position="replace">
+                <div class="oe_footer">
+                    Powered by
+                    <a href="https://www.cenitsaas.com" target="_blank">
+                        <span>Cenit, LLC</span>
+                    </a>
+                </div>
+            </xpath>
+        </template>
+    </data>
+</openerp>
