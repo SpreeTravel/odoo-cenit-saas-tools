@@ -105,7 +105,11 @@ class DoorkeeperOauth (http.Controller):
                 if state.get ('demo', False):
                     db_prefix = "%s-%s" % (db_prefix, 'demo')
 
-                dbname = "%s_%s" %(db_prefix, master_db)
+                icp = request.registry("ir.config_parameter")
+                base_domain = icp.get_param(
+                    request.cr, SUPERUSER_ID, "saas_portal.base_saas_domain", default=None
+                ).replace(".", "_")
+                dbname = "%s_%s" %(db_prefix, base_domain)
                 redirect = "%s://%s.%s" %(proto, db_prefix, root_url)
                 if not redirect.endswith ("/"):
                     redirect += "/"
