@@ -91,6 +91,7 @@ class DoorkeeperOauth (http.Controller):
         _logger.info("\n\nDOORKEEPER_CB args: %s\n", kw)
         if kw.get('state', False):
             state = simplejson.loads(kw['state'])
+            _logger.info("\n\nSTATE: %s\n", state)
 
             master_db = db_monodb ()
             proto, root_url = request.httprequest.url_root.split ("://")
@@ -193,7 +194,7 @@ class DoorkeeperOauth (http.Controller):
                 if not kw.get('scope', False):
                     kw['scope'] = 'userinfo'
                 try:
-                    provider = self.__create_app_for_db (state['d'])
+                    provider = self.__create_app_for_db(state['d'])
                     partner_id, credentials = self.__signup_user (provider, kw)
                     request.cr.commit ()
 
