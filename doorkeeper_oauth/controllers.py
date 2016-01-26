@@ -110,7 +110,7 @@ class DoorkeeperOauth (http.Controller):
                     request.cr, SUPERUSER_ID, "saas_portal.base_saas_domain", default=None
                 ).replace(".", "_")
                 dbname = "%s_%s" %(db_prefix, base_domain)
-                redirect = "%s://%s.%s" %(proto, db_prefix, root_url)
+                redirect = "%s://%s.%s" %(proto, db_prefix, base_domain.replace("_", "."))
                 if not redirect.endswith ("/"):
                     redirect += "/"
             else:
