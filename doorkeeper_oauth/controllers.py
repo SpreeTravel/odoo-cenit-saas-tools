@@ -21,13 +21,14 @@ import logging
 
 _logger = logging.getLogger(__name__)
 
-class DoorkeeperOauth (http.Controller):
 
-    def __create_app_for_db (self, dbname):
-        provider = self.get_provider ()
+class DoorkeeperOauth(http.Controller):
+
+    def __create_app_for_db(self, dbname):
+        provider = self.get_provider()
         client_id = provider.client_id
 
-        request.registry['oauth.application'].create (
+        request.registry['oauth.application'].create(
             request.cr, SUPERUSER_ID, {
                 'client_id': client_id,
                 'name': dbname
@@ -36,11 +37,12 @@ class DoorkeeperOauth (http.Controller):
 
         return provider
 
-    def __signup_user (self, provider, values):
+    def __signup_user(self, provider, values):
         u = request.registry.get('res.users')
-        credentials = u.auth_oauth (request.cr, SUPERUSER_ID, provider.id, values, context={})
+        credentials = u.auth_oauth(request.cr, SUPERUSER_ID, provider.id,
+                                   values, context={})
 
-        user = u.search_read (
+        user = u.search_read(
             request.cr, SUPERUSER_ID, [
                 ('login', '=', credentials[1])
             ]
@@ -85,37 +87,59 @@ class DoorkeeperOauth (http.Controller):
 
         return oat_id
 
+    def __get_dbname(self, cr, uid, login, demo=False):
+        db_pool = request.registry.get('saas_portal.db.login')
+
+        candidates = db_pool.search(cr, uid, [('login', '=', login)])
+        if candidates:
+            db_prefix = db_pool.browse(candidates[0]).db_name
+        else:
+            db_prefix = login.split('@')[0].replace(".", "_")
+            if demo:
+                db_prefix = "%s-%s" % (db_prefix, 'demo')
+
+        icp = request.registry("ir.config_parameter")
+        base_domain = icp.get_param(
+            request.cr, SUPERUSER_ID, "saas_portal.base_saas_domain",
+            default=None
+        ).replace(".", "_")
+
+        return db_prefix, base_domain
+
     @http.route ('/auth_oauth/doorkeeper_cb', type='http', auth='none')
     @fragment_to_query_string
     def doorkeeper_cb (self, **kw):
         _logger.info("\n\nDOORKEEPER_CB args: %s\n", kw)
         if kw.get('state', False):
             state = simplejson.loads(kw['state'])
+            _logger.info("\n\nSTATE: %s\n", state)
 
-            master_db = db_monodb ()
-            proto, root_url = request.httprequest.url_root.split ("://")
+            master_db = db_monodb()
+            proto, root_url = request.httprequest.url_root.split("://")
             if not master_db:
                 return BadRequest()
 
-            if state.get ('login', False):
+            if state.get('login', False):
                 login = state['login']
+                demo = state.get('demo', False)
 
-                db_prefix = state['login'].split ('@')[0].replace(".", "_")
-                if state.get ('demo', False):
-                    db_prefix = "%s-%s" % (db_prefix, 'demo')
-
-                dbname = "%s_%s" %(db_prefix, master_db)
-                redirect = "%s://%s.%s" %(proto, db_prefix, root_url)
-                if not redirect.endswith ("/"):
+                db_prefix, base_domain = self.__get_dbname(request.cr,
+                                                           SUPERUSER_ID, login,
+                                                           demo)
+                dbname = "%s_%s" % (db_prefix, base_domain)
+                redirect = "%s://%s.%s" % (
+                    proto, db_prefix, base_domain.replace("_", ".")
+                )
+                if not redirect.endswith("/"):
                     redirect += "/"
             else:
                 url = "/web/login?oauth_error=2"
                 return set_cookie_and_redirect(url)
 
-            state.update ({'d': dbname})
-            kw['state'] = simplejson.dumps (state)
-            if openerp.service.db.exp_db_exist (dbname):
-                registry = RegistryManager.get (dbname)
+            state.update({'d': dbname})
+            kw['state'] = simplejson.dumps(state)
+            if openerp.service.db.exp_db_exist(dbname):
+                registry = RegistryManager.get(dbname)
 
                 with registry.cursor() as cr:
                     IMD = registry['ir.model.data']
@@ -140,7 +164,8 @@ class DoorkeeperOauth (http.Controller):
                     oapp_pool = master_reg.get('oauth.application')
                     uid = SUPERUSER_ID
                     if oapp_pool:
-                        candidates = oapp_pool.search(master_cr, uid, [('name', '=', dbname)])
+                        candidates = oapp_pool.search(master_cr, uid,
+                                                      [('name', '=', dbname)])
                         if candidates:
                             app_id = candidates[0]
                             self.__save_access_token(
@@ -158,49 +183,50 @@ class DoorkeeperOauth (http.Controller):
                         }),
                     }
 
-                return werkzeug.utils.redirect('{host}{controller}?{params}'.format(
-                        host = redirect,
-                        controller = 'auth_oauth/signin',
-                        params = werkzeug.url_encode(params)
+                return werkzeug.utils.redirect(
+                    '{host}{controller}?{params}'.format(
+                        host=redirect,
+                        controller='auth_oauth/signin',
+                        params=werkzeug.url_encode(params)
                     )
                 )
             else:
-                registry = RegistryManager.get (master_db)
+                registry = RegistryManager.get(master_db)
 
-                if not state.get ('name', False):
-                    state.update ({
-                        'name': db_prefix.capitalize ()
+                if not state.get('name', False):
+                    state.update({
+                        'name': db_prefix.capitalize()
                     })
 
-                if not state.get ('organization', False):
-                    state.update ({
-                        'organization': db_prefix.capitalize ()
+                if not state.get('organization', False):
+                    state.update({
+                        'organization': db_prefix.capitalize()
                     })
 
-                if state.get ('demo', False):
-                    plan = self.get_demo_plan ()
+                if state.get('demo', False):
+                    plan = self.get_demo_plan()
                 else:
-                    if state.get ('plan', False):
-                        plan = self.get_plan (state.get ('plan'))
+                    if state.get('plan', False):
+                        plan = self.get_plan(state.get('plan'))
                     else:
-                        plan = self.get_default_plan ()
-                state.update ({
+                        plan = self.get_default_plan()
+                state.update({
                     'db_template': plan['template'],
                     'plan': plan['id']
                 })
 
-                kw['state'] = simplejson.dumps (state)
+                kw['state'] = simplejson.dumps(state)
                 if not kw.get('scope', False):
                     kw['scope'] = 'userinfo'
                 try:
-                    provider = self.__create_app_for_db (state['d'])
-                    partner_id, credentials = self.__signup_user (provider, kw)
-                    request.cr.commit ()
+                    provider = self.__create_app_for_db(state['d'])
+                    partner_id, credentials = self.__signup_user(provider, kw)
+                    request.cr.commit()
 
-                except Exception, e:
-                    _logger.exception (e)
+                except Exception as e:
+                    _logger.exception(e)
                     url = "/web/login?oauth_error=2"
-                    return set_cookie_and_redirect (url)
+                    return set_cookie_and_redirect(url)
 
                 oapp_pool = registry.get('oauth.application')
                 cr = registry.cursor()
@@ -216,7 +242,7 @@ class DoorkeeperOauth (http.Controller):
                         )
 
                 url = "/saas_server/new_database"
-                kw['admin_data'] = simplejson.dumps ({
+                kw['admin_data'] = simplejson.dumps({
                     'user_id': partner_id,
                     'client_id': provider.client_id,
                     'email': login,
@@ -224,63 +250,63 @@ class DoorkeeperOauth (http.Controller):
                 })
 
                 full_url = '%s?%s' % (url, werkzeug.url_encode(kw))
-                return login_and_redirect (*credentials, redirect_url=full_url)
+                return login_and_redirect(*credentials, redirect_url=full_url)
         else:
-            _logger.exception ('OAuth2: No state provided.')
+            _logger.exception('OAuth2: No state provided.')
             url = "/web/login?oauth_error=2"
 
         return set_cookie_and_redirect(url)
 
     def get_provider(self):
         imd = request.registry['ir.model.data']
-        return imd.xmlid_to_object (
+        return imd.xmlid_to_object(
             request.cr, SUPERUSER_ID,
             'cenit_saas_server.saas_oauth_provider'
         )
 
-    def get_demo_plan (self):
-        icp = request.registry.get ('ir.config_parameter')
-        name = icp.get_param (
+    def get_demo_plan(self):
+        icp = request.registry.get('ir.config_parameter')
+        name = icp.get_param(
             request.cr, SUPERUSER_ID, "cenit.plan.demo", default=None
         )
-        ssp = request.registry.get ('saas_server.plan')
+        ssp = request.registry.get('saas_server.plan')
         conditions = [
             ('state', '=', 'confirmed'),
             ('template', '=', name)
         ]
 
-        plans = ssp.search_read (
+        plans = ssp.search_read(
             request.cr, SUPERUSER_ID, conditions
         )
 
         return plans[0]
 
-    def get_default_plan (self):
-        icp = request.registry.get ('ir.config_parameter')
-        name = icp.get_param (
+    def get_default_plan(self):
+        icp = request.registry.get('ir.config_parameter')
+        name = icp.get_param(
             request.cr, SUPERUSER_ID, "cenit.plan.default", default=None
         )
-        ssp = request.registry.get ('saas_server.plan')
+        ssp = request.registry.get('saas_server.plan')
         conditions = [
             ('state', '=', 'confirmed'),
             ('template', '=', name)
         ]
 
-        plans = ssp.search_read (
+        plans = ssp.search_read(
             request.cr, SUPERUSER_ID, conditions
         )
 
         return plans[0]
 
-    def get_plan (self, name=None):
+    def get_plan(self, name=None):
         ssp = request.registry['saas_server.plan']
         conditions = [
             ('state', '=', 'confirmed'),
         ]
         if name is not None:
-            conditions.append (('template', '=', name))
+            conditions.append(('template', '=', name))
 
-        plans = ssp.search_read (
+        plans = ssp.search_read(
             request.cr, SUPERUSER_ID, conditions
         )
 
@@ -292,13 +318,14 @@ class DoorkeeperOauth (http.Controller):
         return plans[0]
 
 
-class SessionController (Session):
+class SessionController(Session):
 
     @http.route('/web/session/logout', type='http', auth="none")
     def logout(self, redirect='/web'):
-        icp = request.registry.get ('ir.config_parameter')
-        redirect_url = icp.get_param (request.cr, SUPERUSER_ID, 'web.logout.redirect')
+        icp = request.registry.get('ir.config_parameter')
+        redirect_url = icp.get_param(request.cr, SUPERUSER_ID,
+                                     'web.logout.redirect')
 
         redirect = redirect_url if redirect_url else redirect
 
-        return super(SessionController, self).logout (redirect)
+        return super(SessionController, self).logout(redirect)
