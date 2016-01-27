@@ -92,7 +92,7 @@ class DoorkeeperOauth(http.Controller):
 
         candidates = db_pool.search(cr, uid, [('login', '=', login)])
         if candidates:
-            db_prefix = db_pool.browse(candidates[0]).db_name
+            db_prefix = db_pool.browse(cr, uid, candidates[0]).db_name
         else:
             db_prefix = login.split('@')[0].replace(".", "_")
             if demo:
@@ -100,7 +100,7 @@ class DoorkeeperOauth(http.Controller):
 
         icp = request.registry("ir.config_parameter")
         base_domain = icp.get_param(
-            request.cr, SUPERUSER_ID, "saas_portal.base_saas_domain",
+            cr, uid, "saas_portal.base_saas_domain",
             default=None
         ).replace(".", "_")
 
